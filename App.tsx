@@ -8,6 +8,7 @@ import RegisterScreen from './src/screens/RegisterScreen';
 import AdminLoginScreen from './src/screens/AdminLoginScreen';
 import AdminRegisterScreen from './src/screens/AdminRegisterScreen';
 import TasksScreen from './src/screens/TasksScreen';
+import TaskFormScreen from './src/screens/TaskFormScreen';
 
 const Stack = createStackNavigator();
 
@@ -22,6 +23,7 @@ const App = () => {
         <Stack.Screen name="AdminLogin" component={AdminLoginScreen} />
         <Stack.Screen name="AdminRegister" component={AdminRegisterScreen} />
         <Stack.Screen name="Tasks" component={TasksScreen} />
+        <Stack.Screen name="TaskForm" component={TaskFormScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

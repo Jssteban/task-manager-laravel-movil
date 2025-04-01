@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, FlatList, TextInput, Button, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, FlatList, TouchableOpacity } from "react-native";
 
 interface Task {
   id: number;
@@ -8,74 +8,60 @@ interface Task {
   completed: boolean;
 }
 
-const TasksScreen = () => {
+const TasksScreen = ({ navigation, route }: any) => {
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [newTaskTitle, setNewTaskTitle] = useState("");
-  const [newTaskDescription, setNewTaskDescription] = useState("");
-  const [isEditing, setIsEditing] = useState(false);
-  const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
-
+  
+  // Escuchar los cambios en los parámetros de ruta para recibir nuevas tareas
   useEffect(() => {
-    // Simulando datos de tareas locales
-    const simulatedTasks: Task[] = [
-      { id: 1, title: "Tarea 1", description: "Descripción de la tarea 1", completed: false },
-      { id: 2, title: "Tarea 2", description: "Descripción de la tarea 2", completed: true },
-      { id: 3, title: "Tarea 3", description: "Descripción de la tarea 3", completed: false },
-    ];
-    setTasks(simulatedTasks);
-  }, []);
-
-  const handleAddTask = () => {
-    if (newTaskTitle && newTaskDescription) {
-      const newTask: Task = {
-        id: tasks.length + 1,
-        title: newTaskTitle,
-        description: newTaskDescription,
-        completed: false,
-      };
-      setTasks([...tasks, newTask]);
-      setNewTaskTitle("");
-      setNewTaskDescription("");
+    if (route.params?.newTask) {
+      const { newTask, isEditing } = route.params;
+      
+      if (isEditing) {
+        // Actualizar una tarea existente
+        setTasks(currentTasks => 
+          currentTasks.map(task => 
+            task.id === newTask.id ? newTask : task
+          )
+        );
+      } else {
+        // Añadir una nueva tarea
+        setTasks(currentTasks => [...currentTasks, newTask]);
+      }
+      
+      // Limpiar los parámetros después de procesarlos
+      // Esto es clave para evitar procesamiento múltiple
+      setTimeout(() => {
+        navigation.setParams({ newTask: undefined, isEditing: undefined });
+      }, 100);
     }
-  };
-
-  const handleEditTask = (id: number) => {
-    const taskToEdit = tasks.find((task) => task.id === id);
-    if (taskToEdit) {
-      setNewTaskTitle(taskToEdit.title);
-      setNewTaskDescription(taskToEdit.description);
-      setIsEditing(true);
-      setEditingTaskId(id);
-    }
-  };
-
-  const handleUpdateTask = () => {
-    if (newTaskTitle && newTaskDescription && editingTaskId !== null) {
-      setTasks(
-        tasks.map((task) =>
-          task.id === editingTaskId
-            ? { ...task, title: newTaskTitle, description: newTaskDescription }
-            : task
-        )
-      );
-      setNewTaskTitle("");
-      setNewTaskDescription("");
-      setIsEditing(false);
-      setEditingTaskId(null);
-    }
-  };
+  }, [route.params]);
 
   const handleDeleteTask = (id: number) => {
     setTasks(tasks.filter((task) => task.id !== id));
   };
 
+  const toggleTaskCompletion = (id: number) => {
+    setTasks(tasks.map(task => 
+      task.id === id ? {...task, completed: !task.completed} : task
+    ));
+  };
+
   const renderItem = ({ item }: { item: Task }) => (
     <View style={styles.taskItem}>
-      <Text style={styles.taskTitle}>{item.title}</Text>
+      <TouchableOpacity onPress={() => toggleTaskCompletion(item.id)}>
+        <Text style={styles.taskTitle}>
+          {item.completed ? "✓ " : "○ "}{item.title}
+        </Text>
+      </TouchableOpacity>
       <Text>{item.description}</Text>
-      <Text>{item.completed ? "Completada" : "Pendiente"}</Text>
+      <Text style={item.completed ? styles.completedText : styles.pendingText}>
+        {item.completed ? "Completada" : "Pendiente"}
+      </Text>
       <View style={styles.taskActions}>
-        <TouchableOpacity onPress={() => handleEditTask(item.id)}>
+        <TouchableOpacity onPress={() => navigation.navigate('TaskForm', { 
+          taskId: item.id,
+          existingTasks: tasks 
+        })}>
           <Text style={styles.editButton}>Editar</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => handleDeleteTask(item.id)}>
@@ -87,32 +73,23 @@ const TasksScreen = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{isEditing ? "Editar Tarea" : "Lista de Tareas"}</Text>
-      
-      {/* Formulario de tarea */}
-      <TextInput
-        style={styles.input}
-        placeholder="Título de la tarea"
-        value={newTaskTitle}
-        onChangeText={setNewTaskTitle}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Descripción de la tarea"
-        value={newTaskDescription}
-        onChangeText={setNewTaskDescription}
-      />
-      <Button
-        title={isEditing ? "Actualizar Tarea" : "Crear Tarea"}
-        onPress={isEditing ? handleUpdateTask : handleAddTask}
-      />
-
-      {/* Lista de tareas */}
-      <FlatList
-        data={tasks}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.id.toString()}
-      />
+      <Text style={styles.title}>Lista de Tareas</Text>
+      {tasks.length > 0 ? (
+        <FlatList
+          data={tasks}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id.toString()}
+          style={styles.list}
+        />
+      ) : (
+        <Text style={styles.emptyText}>No hay tareas. ¡Añade una!</Text>
+      )}
+      <TouchableOpacity 
+        style={styles.addButton}
+        onPress={() => navigation.navigate('TaskForm', { existingTasks: tasks })}
+      >
+        <Text style={styles.addButtonText}>+ Añadir Tarea</Text>
+      </TouchableOpacity>
     </View>
   );
 };
@@ -120,23 +97,16 @@ const TasksScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
     padding: 20,
   },
   title: {
     fontSize: 24,
     fontWeight: "bold",
     marginBottom: 20,
+    textAlign: "center",
   },
-  input: {
-    width: "80%",
-    padding: 12,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    marginBottom: 10,
-    backgroundColor: "#fff",
+  list: {
+    width: "100%",
   },
   taskItem: {
     marginBottom: 15,
@@ -150,6 +120,14 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     fontSize: 18,
   },
+  completedText: {
+    color: "green",
+    fontWeight: "bold",
+  },
+  pendingText: {
+    color: "orange",
+    fontWeight: "bold",
+  },
   taskActions: {
     marginTop: 10,
     flexDirection: "row",
@@ -158,10 +136,30 @@ const styles = StyleSheet.create({
   editButton: {
     color: "blue",
     textDecorationLine: "underline",
+    padding: 5,
   },
   deleteButton: {
     color: "red",
     textDecorationLine: "underline",
+    padding: 5,
+  },
+  addButton: {
+    backgroundColor: "#4CAF50",
+    padding: 15,
+    borderRadius: 8,
+    alignItems: "center",
+    marginTop: 20,
+  },
+  addButtonText: {
+    color: "white",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
+  emptyText: {
+    textAlign: "center",
+    marginTop: 30,
+    fontSize: 16,
+    color: "#888",
   },
 });
 
